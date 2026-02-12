@@ -4,9 +4,12 @@ This project converts an n8n workflow multi-agent system into a C# application u
 
 ## 🔐 Authentication
 
-**The application now uses MSAL (Microsoft Authentication Library) for secure authentication.**
+**The application uses MSAL (Microsoft Authentication Library) with a unified authentication approach.**
 
-See [MSAL_MCP_GUIDE.md](./MSAL_MCP_GUIDE.md) for complete authentication and MCP integration documentation.
+**Key Feature:** One access token is used for both API and MCP endpoint authentication - no separate MCP credentials needed!
+
+See [MSAL_MCP_GUIDE.md](./MSAL_MCP_GUIDE.md) for complete authentication documentation.  
+See [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for recent changes and migration instructions.
 
 ## Architecture
 
@@ -21,25 +24,27 @@ ASP.NET Core Web API that hosts the multi-agent coordinator system.
 - **CrmSubAgent**: Manages Customer Relationship Management queries with **actual MCP calls**
 - **ServiceDeskSubAgent**: Processes ticket and service desk queries with **actual MCP calls**
 - **ConversationMemoryService**: Manages conversation context and history
-- **McpService**: Implements real MCP JSON-RPC calls with Bearer token authentication
+- **McpService**: Implements real MCP JSON-RPC calls using **the same MSAL token**
 - **JWT Authentication**: Validates Bearer tokens from MSAL
 
 ### 2. WebChat (Port 5001)
-HTML5/JavaScript web application providing a chat interface with MSAL authentication.
+**ASP.NET Core Razor Pages** application providing a chat interface with MSAL authentication.
 
 **Features:**
 - MSAL PublicClientApplication authentication
+- Razor Pages (server-rendered, no Blazor)
 - Clean, modern chat UI with login flow
 - Real-time conversation with the AI coordinator
 - Session management with token refresh
 - Responsive design
+- JavaScript-based chat functionality
 
 ## Prerequisites
 
 - .NET 10 SDK
 - Azure OpenAI account with API access
 - Azure AD app registration for authentication
-- Access to MCP endpoints (CMDB, CRM, ServiceDesk)
+- Access to MCP endpoints (CMDB, CRM, ServiceDesk) that accept Bearer tokens
 
 ## Configuration
 
@@ -77,12 +82,12 @@ Both projects need Azure AD configuration for authentication:
   "Mcp": {
     "CmdbEndpoint": "https://cloud.sps.nl/mcp/cmdb/",
     "CrmEndpoint": "https://cloud.sps.nl/mcp/crm/",
-    "ServiceDeskEndpoint": "https://cloud.sps.nl/mcp/servicedesk/",
-    "AuthHeaderName": "Authorization",
-    "AuthHeaderValue": "your-auth-header-value"
+    "ServiceDeskEndpoint": "https://cloud.sps.nl/mcp/servicedesk/"
   }
 }
 ```
+
+**Important:** MCP endpoints now use the **same MSAL access token** - no separate authentication needed!
 
 **Configuration Parameters:**
 
