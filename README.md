@@ -2,6 +2,12 @@
 
 This project converts an n8n workflow multi-agent system into a C# application using the Microsoft Agent Framework and Azure OpenAI.
 
+## 🔐 Authentication
+
+**The application now uses MSAL (Microsoft Authentication Library) for secure authentication.**
+
+See [MSAL_MCP_GUIDE.md](./MSAL_MCP_GUIDE.md) for complete authentication and MCP integration documentation.
+
 ## Architecture
 
 The solution consists of two main projects:
@@ -11,35 +17,58 @@ ASP.NET Core Web API that hosts the multi-agent coordinator system.
 
 **Key Components:**
 - **CoordinatorAgent**: Main agent that routes requests to specialized sub-agents
-- **CmdbSubAgent**: Handles Configuration Management Database queries
-- **CrmSubAgent**: Manages Customer Relationship Management queries
-- **ServiceDeskSubAgent**: Processes ticket and service desk queries
+- **CmdbSubAgent**: Handles Configuration Management Database queries with **actual MCP calls**
+- **CrmSubAgent**: Manages Customer Relationship Management queries with **actual MCP calls**
+- **ServiceDeskSubAgent**: Processes ticket and service desk queries with **actual MCP calls**
 - **ConversationMemoryService**: Manages conversation context and history
-- **McpClient**: Communicates with MCP (Model Context Protocol) endpoints
+- **McpService**: Implements real MCP JSON-RPC calls with Bearer token authentication
+- **JWT Authentication**: Validates Bearer tokens from MSAL
 
 ### 2. WebChat (Port 5001)
-HTML5/JavaScript web application providing a chat interface.
+HTML5/JavaScript web application providing a chat interface with MSAL authentication.
 
 **Features:**
-- Clean, modern chat UI
+- MSAL PublicClientApplication authentication
+- Clean, modern chat UI with login flow
 - Real-time conversation with the AI coordinator
-- Session management
+- Session management with token refresh
 - Responsive design
 
 ## Prerequisites
 
 - .NET 10 SDK
 - Azure OpenAI account with API access
+- Azure AD app registration for authentication
 - Access to MCP endpoints (CMDB, CRM, ServiceDesk)
 
 ## Configuration
 
-### WebAPI Configuration
+### Azure AD Configuration (Required)
 
-Edit `src/WebAPI/appsettings.json`:
+Both projects need Azure AD configuration for authentication:
 
+**WebChat `appsettings.json`:**
 ```json
 {
+  "AzureAd": {
+    "ClientId": "your-client-id-here",
+    "Authority": "https://login.microsoftonline.com/your-tenant-id-here",
+    "RedirectUri": "http://localhost:5001",
+    "Scopes": [
+      "user.read",
+      "api://your-api-client-id/.default"
+    ]
+  }
+}
+```
+
+**WebAPI `appsettings.json`:**
+```json
+{
+  "AzureAd": {
+    "ClientId": "your-client-id-here",
+    "Authority": "https://login.microsoftonline.com/your-tenant-id-here"
+  },
   "AzureOpenAI": {
     "Endpoint": "https://your-resource-name.openai.azure.com/",
     "ApiKey": "your-api-key-here",
