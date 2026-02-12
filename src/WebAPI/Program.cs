@@ -1,5 +1,7 @@
 using Azure;
 using Azure.AI.OpenAI;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using OpenAI.Chat;
 using WebAPI.Agents;
 using WebAPI.Models;
@@ -10,15 +12,37 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddHttpContextAccessor();
+
+// Configure CORS
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("http://localhost:5001")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
+
+// Configure JWT Authentication
+var azureAdConfig = builder.Configuration.GetSection("AzureAd");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = azureAdConfig["Authority"];
+        options.Audience = azureAdConfig["ClientId"];
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 // Configure Azure OpenAI
 var azureConfig = builder.Configuration.GetSection("AzureOpenAI").Get<AzureOpenAIConfig>();
@@ -43,15 +67,8 @@ if (mcpConfig == null)
     throw new InvalidOperationException("MCP configuration is missing");
 }
 
-// Register MCP clients
-builder.Services.AddHttpClient();
-builder.Services.AddSingleton(sp =>
-{
-    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-    var logger = sp.GetRequiredService<ILogger<McpClient>>();
-    var httpClient = httpClientFactory.CreateClient("CmdbMcp");
-    return new McpClient(httpClient, mcpConfig.CmdbEndpoint, mcpConfig.AuthHeaderName, mcpConfig.AuthHeaderValue, logger);
-});
+// Register MCP Service with ModelContextProtocol
+builder.Services.AddSingleton<IMcpService, McpService>();
 
 // Register services
 builder.Services.AddSingleton<IConversationMemoryService, ConversationMemoryService>();
@@ -72,6 +89,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

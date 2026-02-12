@@ -94,17 +94,17 @@ Your goal is to provide seamless, intelligent coordination that makes complex mu
         };
     }
 
-    public override async Task<string> ExecuteAsync(string input, List<ConversationMessage> conversationHistory)
+    public override async Task<string> ExecuteAsync(string input, List<ConversationMessage> conversationHistory, string? accessToken = null)
     {
         // First, analyze the request and determine routing
-        var analysis = await AnalyzeRequest(input, conversationHistory);
+        var analysis = await AnalyzeRequest(input, conversationHistory, accessToken);
         
         // For now, we'll use a simple implementation
         // In a full implementation, you would parse the analysis and route to appropriate agents
-        return await base.ExecuteAsync(input, conversationHistory);
+        return await base.ExecuteAsync(input, conversationHistory, accessToken);
     }
 
-    private async Task<string> AnalyzeRequest(string input, List<ConversationMessage> conversationHistory)
+    private async Task<string> AnalyzeRequest(string input, List<ConversationMessage> conversationHistory, string? accessToken = null)
     {
         var analysisPrompt = $@"Analyze this user request and determine which sub-agents to call:
 User Request: {input}
@@ -113,6 +113,6 @@ Available agents: CMDB Agent, CRM Agent, ServiceDesk Agent
 
 Provide your analysis.";
 
-        return await base.ExecuteAsync(analysisPrompt, conversationHistory);
+        return await base.ExecuteAsync(analysisPrompt, conversationHistory, accessToken);
     }
 }

@@ -6,7 +6,7 @@ namespace WebAPI.Agents;
 
 public class ServiceDeskSubAgent : BaseAgent
 {
-    private readonly IMcpClient _mcpClient;
+    private readonly IMcpService _mcpService;
 
     public override string Name => "ServiceDesk Agent";
     public override string Description => "Servicedesk";
@@ -67,14 +67,49 @@ CRITICAL REMINDERS
 
 You are a focused, efficient data retrieval specialist for service desk tickets. Execute tasks precisely and return only what was requested.";
 
-    public ServiceDeskSubAgent(ChatClient chatClient, IMcpClient mcpClient, ILogger<ServiceDeskSubAgent> logger)
+    public ServiceDeskSubAgent(ChatClient chatClient, IMcpService mcpService, ILogger<ServiceDeskSubAgent> logger)
         : base(chatClient, SystemMessage, logger)
     {
-        _mcpClient = mcpClient;
+        _mcpService = mcpService;
     }
 
-    public override async Task<string> ExecuteAsync(string input, List<ConversationMessage> conversationHistory)
+    public override async Task<string> ExecuteAsync(string input, List<ConversationMessage> conversationHistory, string? accessToken = null)
     {
-        return await base.ExecuteAsync(input, conversationHistory);
+        try
+        {
+            var lowerInput = input.ToLower();
+            
+            // Handle common ServiceDesk queries
+            if (lowerInput.Contains("ticket") || lowerInput.Contains("tickets"))
+            {
+                var tickets = await _mcpService.CallServiceDeskToolAsync(
+                    "get_tickets",
+                    new Dictionary<string, object> 
+                    { 
+                        { "status", "open" },
+                        { "limit", 20 }
+                    },
+                    accessToken);
+                
+                return $"ServiceDesk Query Result for tickets:\n{tickets}";
+            }
+            else if (lowerInput.Contains("incident"))
+            {
+                var incidents = await _mcpService.CallServiceDeskToolAsync(
+                    "get_incidents",
+                    new Dictionary<string, object> { { "limit", 20 } },
+                    accessToken);
+                
+                return $"ServiceDesk Query Result for incidents:\n{incidents}";
+            }
+            
+            // For other queries, use AI to determine the appropriate action
+            return await base.ExecuteAsync(input, conversationHistory, accessToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in ServiceDesk agent execution");
+            return $"Error executing ServiceDesk query: {ex.Message}";
+        }
     }
 }

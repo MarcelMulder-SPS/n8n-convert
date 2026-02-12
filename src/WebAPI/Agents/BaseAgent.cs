@@ -8,7 +8,7 @@ public interface IAgent
 {
     string Name { get; }
     string Description { get; }
-    Task<string> ExecuteAsync(string input, List<ConversationMessage> conversationHistory);
+    Task<string> ExecuteAsync(string input, List<ConversationMessage> conversationHistory, string? accessToken = null);
 }
 
 public abstract class BaseAgent : IAgent
@@ -27,7 +27,7 @@ public abstract class BaseAgent : IAgent
         _logger = logger;
     }
 
-    public virtual async Task<string> ExecuteAsync(string input, List<ConversationMessage> conversationHistory)
+    public virtual async Task<string> ExecuteAsync(string input, List<ConversationMessage> conversationHistory, string? accessToken = null)
     {
         try
         {

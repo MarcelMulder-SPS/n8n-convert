@@ -6,7 +6,7 @@ namespace WebAPI.Agents;
 
 public class CrmSubAgent : BaseAgent
 {
-    private readonly IMcpClient _mcpClient;
+    private readonly IMcpService _mcpService;
 
     public override string Name => "CRM Agent";
     public override string Description => "Use this crm sub-agent for the following tasks:\n- employees\n- organisations\n- users (engineers)\n- supportgroups";
@@ -58,14 +58,54 @@ CRITICAL REMINDERS
 
 You are a focused, efficient data retrieval specialist for people and organizational data. Execute tasks precisely and return only what was requested.";
 
-    public CrmSubAgent(ChatClient chatClient, IMcpClient mcpClient, ILogger<CrmSubAgent> logger)
+    public CrmSubAgent(ChatClient chatClient, IMcpService mcpService, ILogger<CrmSubAgent> logger)
         : base(chatClient, SystemMessage, logger)
     {
-        _mcpClient = mcpClient;
+        _mcpService = mcpService;
     }
 
-    public override async Task<string> ExecuteAsync(string input, List<ConversationMessage> conversationHistory)
+    public override async Task<string> ExecuteAsync(string input, List<ConversationMessage> conversationHistory, string? accessToken = null)
     {
-        return await base.ExecuteAsync(input, conversationHistory);
+        try
+        {
+            var lowerInput = input.ToLower();
+            
+            // Handle common CRM queries
+            if (lowerInput.Contains("employee") || lowerInput.Contains("employees"))
+            {
+                var employees = await _mcpService.CallCrmToolAsync(
+                    "get_employees",
+                    new Dictionary<string, object> { { "limit", 20 } },
+                    accessToken);
+                
+                return $"CRM Query Result for employees:\n{employees}";
+            }
+            else if (lowerInput.Contains("organization") || lowerInput.Contains("organisation"))
+            {
+                var orgs = await _mcpService.CallCrmToolAsync(
+                    "get_organizations",
+                    new Dictionary<string, object>(),
+                    accessToken);
+                
+                return $"CRM Query Result for organizations:\n{orgs}";
+            }
+            else if (lowerInput.Contains("support group"))
+            {
+                var groups = await _mcpService.CallCrmToolAsync(
+                    "get_support_groups",
+                    new Dictionary<string, object>(),
+                    accessToken);
+                
+                return $"CRM Query Result for support groups:\n{groups}";
+            }
+            
+            // For other queries, use AI to determine the appropriate action
+            return await base.ExecuteAsync(input, conversationHistory, accessToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in CRM agent execution");
+            return $"Error executing CRM query: {ex.Message}";
+        }
     }
 }

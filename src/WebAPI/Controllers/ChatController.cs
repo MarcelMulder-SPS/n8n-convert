@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebAPI.Agents;
 using WebAPI.Models;
@@ -7,20 +8,24 @@ namespace WebAPI.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class ChatController : ControllerBase
 {
     private readonly CoordinatorAgent _coordinatorAgent;
     private readonly IConversationMemoryService _memoryService;
     private readonly ILogger<ChatController> _logger;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public ChatController(
         CoordinatorAgent coordinatorAgent,
         IConversationMemoryService memoryService,
-        ILogger<ChatController> logger)
+        ILogger<ChatController> logger,
+        IHttpContextAccessor httpContextAccessor)
     {
         _coordinatorAgent = coordinatorAgent;
         _memoryService = memoryService;
         _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     [HttpPost]
@@ -32,6 +37,10 @@ public class ChatController : ControllerBase
             {
                 return BadRequest("Message cannot be empty");
             }
+
+            // Get the Bearer token from the request
+            var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"]
+                .ToString().Replace("Bearer ", "");
 
             // Generate session ID if not provided
             var sessionId = string.IsNullOrWhiteSpace(request.SessionId) 
@@ -48,8 +57,8 @@ public class ChatController : ControllerBase
             // Get conversation history
             var history = _memoryService.GetMessages(sessionId, 20);
 
-            // Execute the coordinator agent
-            var response = await _coordinatorAgent.ExecuteAsync(request.Message, history);
+            // Execute the coordinator agent with token for MCP authentication
+            var response = await _coordinatorAgent.ExecuteAsync(request.Message, history, token);
 
             // Add assistant response to memory
             _memoryService.AddMessage(sessionId, new ConversationMessage

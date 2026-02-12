@@ -6,7 +6,7 @@ namespace WebAPI.Agents;
 
 public class CmdbSubAgent : BaseAgent
 {
-    private readonly IMcpClient _mcpClient;
+    private readonly IMcpService _mcpService;
 
     public override string Name => "CMDB Agent";
     public override string Description => "Use this cmdb sub-agent for the following tasks:\n- get cis\n- get attributes\n- get classes";
@@ -15,8 +15,10 @@ public class CmdbSubAgent : BaseAgent
 
 CORE DIRECTIVES
 1. Workflow
-- Always use the think1 tool first before executing any action
-- Plan your approach, then execute
+- Always analyze the user request first
+- Determine which CMDB tools to call
+- Execute MCP calls to retrieve data
+- Return structured results
 
 2. Response Style
 - Provide simple, direct answers - only what was requested
@@ -69,16 +71,68 @@ CRITICAL REMINDERS
 
 You are a focused, efficient data retrieval specialist. Execute tasks precisely and return only what was requested.";
 
-    public CmdbSubAgent(ChatClient chatClient, IMcpClient mcpClient, ILogger<CmdbSubAgent> logger)
+    public CmdbSubAgent(ChatClient chatClient, IMcpService mcpService, ILogger<CmdbSubAgent> logger)
         : base(chatClient, SystemMessage, logger)
     {
-        _mcpClient = mcpClient;
+        _mcpService = mcpService;
     }
 
-    public override async Task<string> ExecuteAsync(string input, List<ConversationMessage> conversationHistory)
+    public override async Task<string> ExecuteAsync(string input, List<ConversationMessage> conversationHistory, string? accessToken = null)
     {
-        // For now, we'll use the base implementation with the MCP client available
-        // In a full implementation, you would parse the agent's response and make MCP calls
-        return await base.ExecuteAsync(input, conversationHistory);
+        try
+        {
+            // Example: Parse the input and make actual MCP calls
+            // This is a simple implementation - in production, you'd use more sophisticated parsing
+            
+            var lowerInput = input.ToLower();
+            
+            // Handle common CMDB queries
+            if (lowerInput.Contains("server") || lowerInput.Contains("servers"))
+            {
+                // Call MCP to get servers
+                var servers = await _mcpService.CallCmdbToolAsync(
+                    "get_cis", 
+                    new Dictionary<string, object> 
+                    { 
+                        { "class", "server" },
+                        { "include_virtual", true }
+                    },
+                    accessToken);
+                
+                return $"CMDB Query Result for servers:\n{servers}";
+            }
+            else if (lowerInput.Contains("ci") || lowerInput.Contains("configuration item"))
+            {
+                // General CI query
+                var cis = await _mcpService.CallCmdbToolAsync(
+                    "get_cis",
+                    new Dictionary<string, object> { { "limit", 10 } },
+                    accessToken);
+                
+                return $"CMDB Query Result:\n{cis}";
+            }
+            else if (lowerInput.Contains("class"))
+            {
+                // Get CI classes
+                var classes = await _mcpService.CallCmdbToolAsync(
+                    "get_classes",
+                    new Dictionary<string, object>(),
+                    accessToken);
+                
+                return $"CMDB Classes:\n{classes}";
+            }
+            
+            // For other queries, use AI to determine the appropriate action
+            var aiResponse = await base.ExecuteAsync(input, conversationHistory, accessToken);
+            
+            // If AI suggests a specific tool, you could parse and execute it here
+            // For now, return the AI response which provides guidance
+            return aiResponse;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in CMDB agent execution");
+            return $"Error executing CMDB query: {ex.Message}";
+        }
     }
 }
