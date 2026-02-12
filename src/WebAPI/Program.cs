@@ -67,6 +67,9 @@ if (mcpConfig == null)
     throw new InvalidOperationException("MCP configuration is missing");
 }
 
+// Register HttpClient for MCP Service
+builder.Services.AddHttpClient();
+
 // Register MCP Service with ModelContextProtocol
 builder.Services.AddSingleton<IMcpService, McpService>();
 
