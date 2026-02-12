@@ -21,6 +21,4 @@ public class McpConfig
     public string CmdbEndpoint { get; set; } = string.Empty;
     public string CrmEndpoint { get; set; } = string.Empty;
     public string ServiceDeskEndpoint { get; set; } = string.Empty;
-    public string AuthHeaderName { get; set; } = string.Empty;
-    public string AuthHeaderValue { get; set; } = string.Empty;
 }

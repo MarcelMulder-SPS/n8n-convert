@@ -2,8 +2,10 @@ using Microsoft.Identity.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services
+// Add Razor Pages
+builder.Services.AddRazorPages();
 builder.Services.AddControllers();
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -36,8 +38,9 @@ builder.Services.AddSingleton<IPublicClientApplication>(sp =>
 var app = builder.Build();
 
 app.UseCors();
-app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseRouting();
+app.MapRazorPages();
 app.MapControllers();
 
 app.Run();
