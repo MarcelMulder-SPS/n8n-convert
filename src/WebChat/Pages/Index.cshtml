@@ -1,0 +1,67 @@
+@page
+@model WebChat.Pages.IndexModel
+@{
+    ViewData["Title"] = "AI Multi-Agent Coordinator";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 AI Multi-Agent Coordinator</h1>
+            <p class="subtitle">Intelligent routing across CMDB, CRM, and ServiceDesk agents</p>
+        </header>
+
+        <div class="chat-container">
+            <div id="loginSection" class="login-section" style="display: none;">
+                <div class="login-box">
+                    <h3>🔐 Authentication Required</h3>
+                    <p>Please login with your Microsoft account to continue</p>
+                    <button id="loginButton" class="login-btn">Login with Microsoft</button>
+                </div>
+            </div>
+
+            <div id="chatMessages" class="chat-messages">
+                <div class="welcome-message">
+                    <h2>Welcome to the Multi-Agent Coordinator</h2>
+                    <p>I can help you with:</p>
+                    <ul>
+                        <li>📊 <strong>CMDB</strong> - Configuration Items, infrastructure, and IT assets</li>
+                        <li>👥 <strong>CRM</strong> - Organizations, employees, users, and contacts</li>
+                        <li>🎫 <strong>ServiceDesk</strong> - Tickets, incidents, and service requests</li>
+                    </ul>
+                    <p>Ask me anything!</p>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="Type your message here..." 
+                    autocomplete="off"
+                >
+                <button id="sendButton">Send</button>
+            </div>
+
+            <div class="status-bar">
+                <span id="statusText">Ready</span>
+                <button id="clearButton" class="clear-btn">Clear Session</button>
+            </div>
+        </div>
+
+        <footer>
+            <p>Powered by Azure OpenAI and Microsoft Agent Framework</p>
+        </footer>
+    </div>
+
+    <script src="~/js/chat.js"></script>
+</body>
+</html>

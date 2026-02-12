@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WebAPI/WebAPI.csproj" />
+    <Project Path="src/WebChat/WebChat.csproj" />
+  </Folder>
+</Solution>
