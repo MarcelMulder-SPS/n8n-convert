@@ -29,22 +29,23 @@ public class McpService : IMcpService
     public async Task<string> CallCmdbToolAsync(string toolName, Dictionary<string, object> parameters, string? accessToken = null)
     {
         var endpoint = _configuration["Mcp:CmdbEndpoint"];
-        return await CallMcpToolAsync(endpoint, toolName, parameters, accessToken);
+        return await CallMcpToolAsync("cmdb", endpoint, toolName, parameters, accessToken);
     }
 
     public async Task<string> CallCrmToolAsync(string toolName, Dictionary<string, object> parameters, string? accessToken = null)
     {
         var endpoint = _configuration["Mcp:CrmEndpoint"];
-        return await CallMcpToolAsync(endpoint, toolName, parameters, accessToken);
+        return await CallMcpToolAsync("crm", endpoint, toolName, parameters, accessToken);
     }
 
     public async Task<string> CallServiceDeskToolAsync(string toolName, Dictionary<string, object> parameters, string? accessToken = null)
     {
         var endpoint = _configuration["Mcp:ServiceDeskEndpoint"];
-        return await CallMcpToolAsync(endpoint, toolName, parameters, accessToken);
+        return await CallMcpToolAsync("servicedesk", endpoint, toolName, parameters, accessToken);
     }
 
     private async Task<string> CallMcpToolAsync(
+        string clientKey,
         string? endpointUrl,
         string toolName,
         Dictionary<string, object> parameters,
@@ -52,16 +53,16 @@ public class McpService : IMcpService
     {
         if (string.IsNullOrEmpty(endpointUrl))
         {
-            _logger.LogWarning("MCP endpoint URL is not configured");
+            _logger.LogWarning("MCP endpoint URL is not configured for {ClientKey}", clientKey);
             return "MCP endpoint not configured";
         }
 
         try
         {
-            // Create HTTP client with SSE transport configuration
-            var httpClient = _httpClientFactory.CreateClient();
+            // Create HTTP client with SSE transport configuration for MCP
+            var httpClient = _httpClientFactory.CreateClient(clientKey);
             httpClient.BaseAddress = new Uri(endpointUrl);
-            httpClient.Timeout = TimeSpan.FromMinutes(5);
+            httpClient.Timeout = TimeSpan.FromMinutes(2);
             
             // Add Bearer token for authentication
             if (!string.IsNullOrEmpty(accessToken))
@@ -70,17 +71,17 @@ public class McpService : IMcpService
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
             }
 
-            // Add headers for SSE
+            // Configure headers for Server-Sent Events (SSE) transport
             httpClient.DefaultRequestHeaders.Accept.Clear();
             httpClient.DefaultRequestHeaders.Accept.Add(
                 new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("text/event-stream"));
             httpClient.DefaultRequestHeaders.CacheControl = 
                 new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
 
-            _logger.LogInformation("Calling MCP endpoint {Endpoint} with tool {ToolName} using SSE transport", 
-                endpointUrl, toolName);
+            _logger.LogInformation("Calling MCP tool {ToolName} on {ClientKey} using SSE transport", toolName, clientKey);
 
-            // Create MCP request using JSON-RPC 2.0 format
+            // Create MCP tool call request using JSON-RPC 2.0 format
+            // This follows the Model Context Protocol specification
             var request = new
             {
                 jsonrpc = "2.0",
@@ -96,7 +97,7 @@ public class McpService : IMcpService
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-            // Make the request
+            // Make the HTTP POST request to the MCP server
             var response = await httpClient.PostAsync(string.Empty, content);
             
             if (!response.IsSuccessStatusCode)
@@ -108,20 +109,25 @@ public class McpService : IMcpService
 
             var result = await response.Content.ReadAsStringAsync();
             
-            _logger.LogInformation("MCP call successful for tool {ToolName}", toolName);
+            _logger.LogInformation("MCP tool {ToolName} call successful", toolName);
             
-            // Parse the JSON-RPC response
+            // Parse the JSON-RPC 2.0 response
             try
             {
                 var jsonResponse = JsonSerializer.Deserialize<JsonElement>(result);
+                
+                // Check for result field (success case)
                 if (jsonResponse.TryGetProperty("result", out var resultElement))
                 {
+                    // Check if result has content field
                     if (resultElement.TryGetProperty("content", out var contentElement))
                     {
                         return contentElement.ToString();
                     }
+                    // Return formatted result
                     return JsonSerializer.Serialize(resultElement, new JsonSerializerOptions { WriteIndented = true });
                 }
+                // Check for error field (error case)
                 else if (jsonResponse.TryGetProperty("error", out var errorElement))
                 {
                     _logger.LogError("MCP returned error: {Error}", errorElement.ToString());
@@ -135,10 +141,15 @@ public class McpService : IMcpService
 
             return result;
         }
+        catch (TaskCanceledException)
+        {
+            _logger.LogWarning("MCP tool call {ToolName} timed out", toolName);
+            return "MCP call timed out";
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error calling MCP endpoint {Endpoint} with tool {ToolName}", endpointUrl, toolName);
-            return $"Error calling MCP: {ex.Message}";
+            _logger.LogError(ex, "Error calling MCP tool {ToolName} on {ClientKey}", toolName, clientKey);
+            return $"Error calling MCP tool: {ex.Message}";
         }
     }
 }
